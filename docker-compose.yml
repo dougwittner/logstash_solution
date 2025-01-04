@@ -1,0 +1,39 @@
+
+services:
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: dwittn32
+      POSTGRES_PASSWORD: dwittn32
+      POSTGRES_DB: automobiles
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  elasticsearch:
+    depends_on:
+      - postgres
+    image: elasticsearch:7.10.1
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  logstash:
+    depends_on:
+      - elasticsearch
+      - postgres
+    image: logstash:7.10.1
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
