@@ -1,38 +1,56 @@
-
+ 
 services:
-  postgres:
-    image: postgres:latest
-    restart: always
-    environment:
-      POSTGRES_USER: dwittn32
-      POSTGRES_PASSWORD: dwittn32
-      POSTGRES_DB: automobiles
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+   postgres:
+     image: postgres:latest
+     restart: always
+     environment:
+       POSTGRES_USER: dwittn32
+       POSTGRES_PASSWORD: dwittn32
+       POSTGRES_DB: automobiles
+     ports:
+       - "5432:5432"
+     volumes:
+       - postgres_data:/var/lib/postgresql/data
+       - ./logstash/init.sql:/docker-entrypoint-initdb.d/init.sql
+ 
+   elasticsearch:
+     depends_on:
+       - postgres
+     image: elasticsearch:7.10.1
+     environment:
+       discovery.type: single-node
+       ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+     ports:
+       - "9200:9200"
+     volumes:
+       - elasticsearch_data:/usr/share/elasticsearch/data
+    
+   kibana:
+     depends_on:
+       - elasticsearch
+     image: kibana:7.10.1
+     ports:
+       - "5601:5601"
+     environment:
+       ELASTICSEARCH_URL: http://elasticsearch:9200
 
-  elasticsearch:
-    depends_on:
-      - postgres
-    image: elasticsearch:7.10.1
-    environment:
-      discovery.type: single-node
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-
-  logstash:
-    depends_on:
-      - elasticsearch
-      - postgres
-    image: logstash:7.10.1
-    ports:
-      - "5044:5044"
-    volumes:
-      - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+      
+   logstash:
+     depends_on:
+       - elasticsearch
+       - postgres
+     image: logstash:7.10.1
+     ports:
+       - "5044:5044"
+     environment:
+      - LS_JDBC_DRIVER_JAR=/usr/share/logstash/postgresql-42.2.18.jar
+     extra_hosts:
+      - "host.docker.internal:host-gateway"
+     command: >
+      bash -c "curl -o /usr/share/logstash/postgresql-42.2.18.jar https://jdbc.postgresql.org/download/postgresql-42.2.18.jar &&
+         /usr/local/bin/docker-entrypoint"
+     volumes:
+       - ./logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
 
 volumes:
   postgres_data:
